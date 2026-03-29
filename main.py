@@ -485,10 +485,10 @@ async def join_channel_insert_subscribe(user_id,keyword_channel_list):
         
     except errors.InviteHashExpiredError as _e:
       logger.error(f'{c} InviteHashExpiredError ERROR:{_e}')
-      return f'无法使用该频道邀请链接：{c}\nLink has expired.'
+      return f'Cannot use invite link: {c}\nLink has expired.'
     except errors.UserAlreadyParticipantError as _e:# 重复加入私有频道
       logger.warning(f'{c} UserAlreadyParticipantError ERROR:{_e}')
-      return f'无法使用该频道邀请链接：UserAlreadyParticipantError'
+      return f'Cannot use invite link: already a participant'
     except Exception as _e: # 不存在的频道
       logger.error(f'{c} JoinChannelRequest ERROR:{_e}')
       
@@ -503,9 +503,9 @@ async def join_channel_insert_subscribe(user_id,keyword_channel_list):
           else:
             res.append((k,channel_name_or_chat_id,''))
         else:
-          return '无法使用该频道：{}\n\nChannel error, unable to use: {}'.format(c,_e)
+          return 'Channel error, unable to use: {}\n{}'.format(c,_e)
       else:
-        return '无法使用该频道：{}\n\nChannel error, unable to use: {}'.format(c,_e)
+        return 'Channel error, unable to use: {}\n{}'.format(c,_e)
     
   # 写入数据表
   result = []
@@ -549,7 +549,7 @@ async def leave_channel(channel_name):
       await client(DeleteHistoryRequest(channel_name))
       logger.info(f'退出 {channel_name}')
   except Exception as _e: # 不存在的频道
-      return f'无法退出该频道：{channel_name}, {_e}'
+      return f'Cannot leave channel: {channel_name}, {_e}'
       
 
 def update_subscribe(user_id,keyword_channel_list):
@@ -584,7 +584,7 @@ async def start(event):
 
   # 访问授权检查
   if not is_allow_access(chat_id):
-    await event.respond('Opps! I\'m a private bot. 对不起, 这是一个私人专用的Bot')
+    await event.respond('Sorry, this is a private bot.')
     raise events.StopPropagation
 
   find = utils.db.user.get_or_none(chat_id=chat_id)
@@ -609,7 +609,7 @@ async def subscribe(event):
   # insert chat_id
   chat_id = event.message.chat.id
   if not is_allow_access(chat_id):
-    await event.respond('Opps! I\'m a private bot. 对不起, 这是一个私人专用的Bot')
+    await event.respond('Sorry, this is a private bot.')
     raise events.StopPropagation
   
   find = utils.db.user.get_or_none(chat_id=chat_id)
@@ -623,7 +623,7 @@ async def subscribe(event):
   text = regex.sub(r'\s*,\s*',',',text) # 确保英文逗号间隔中间都没有空格  如 "https://t.me/xiaobaiup, https://t.me/com9ji"
   splitd = [i for i in regex.split(r'\s+',text) if i]# 删除空元素
   if len(splitd) <= 1:
-    msg = "输入需要订阅的关键字,支持js正则语法：\n`/[\s\S]*/ig`\n\nInput the keyword that needs to subscribe, support JS regular syntax：\n`/[\s\S]*/ig`"
+    msg = "Enter keyword to subscribe. Supports JS regex syntax:\n`/[\\s\\S]*/ig`"
     _text, entities = markdown.parse(msg)
     await event.respond(_text,formatting_entities=entities)
     cache.set('status_{}'.format(chat_id),{'current_status':'/subscribe keywords','record_value':text},expire=5*60)#设置5m后过期
@@ -713,7 +713,7 @@ async def unsubscribe_id(event):
         result.append(i)
     await event.respond('success unsubscribe id:{}'.format(result if result else 'None'))
   elif len(splitd) < 2:
-    await event.respond('输入需要**取消订阅**的订阅id：\n\nEnter the subscription id of the channel where ** unsubscribe **is required:')
+    await event.respond('Enter subscription ID to unsubscribe:')
     cache.set('status_{}'.format(chat_id),{'current_status':'/unsubscribe_id ids','record_value':None},expire=5*60)# 记录输入的关键字
     raise events.StopPropagation
   else:
@@ -738,7 +738,7 @@ async def unsubscribe(event):
   text = regex.sub(r'\s*,\s*',',',text) # 确保英文逗号间隔中间都没有空格  如 "https://t.me/xiaobaiup, https://t.me/com9ji"
   splitd = [i for i in regex.split(r'\s+',text) if i]# 删除空元素
   if len(splitd) <= 1:
-    await event.respond('输入需要**取消订阅**的关键字\n\nEnter a keyword that requires **unsubscribe**')
+    await event.respond('Enter keyword to unsubscribe:')
     cache.set('status_{}'.format(chat_id),{'current_status':'/unsubscribe keywords','record_value':text},expire=5*60)#设置5m后过期
   elif len(splitd)  == 3:
     command, keywords, channels = splitd
@@ -811,61 +811,25 @@ async def setlengthlimit(event):
 @bot.on(events.NewMessage(pattern='/help'))
 async def start(event):
   await event.respond('''
+Subscribe to channel/group messages by keywords.
 
-目的：根据关键字订阅频道消息，支持群组
+Multi-keyword and multi-channel support, use comma `,` to separate.
+Use space between keywords and channels.
 
-BUG反馈：https://git.io/JJ0Ey
+**Commands:**
 
-支持多关键字和多频道订阅，使用英文逗号`,`间隔
+/subscribe keyword1,keyword2 channel1,channel2
+/subscribe keyword1 https://t.me/channel1
 
-关键字和频道之间使用空格间隔
+/unsubscribe keyword1,keyword2 https://t.me/channel1
 
-主要命令：
-
- - 订阅操作
-
-  /subscribe  关键字1,关键字2 tianfutong,xiaobaiup
-
-  /subscribe  关键字1,关键字2 https://t.me/tianfutong,https://t.me/xiaobaiup
-
- - 取消订阅
-
-  /unsubscribe  关键字1,关键字2 https://t.me/tianfutong,https://t.me/xiaobaiup
-
- - 取消订阅id
-
-  /unsubscribe_id  1,2
-
- - 取消所有订阅
-
-  /unsubscribe_all
-
- - 显示所有订阅列表
-
-  /list
-
----
-Purpose: Subscribe to channel messages based on keywords. Support groups
-
-BUG FEEDBACK: https://git.io/JJ0Ey
-
-Multi-keyword and multi-channel subscription support, using comma `,` interval.
-
-Use space between keywords and channels
-
-Main command:
-
-/subscribe  keyword1,keyword2 tianfutong,xiaobaiup
-/subscribe  keyword1,keyword2 https://t.me/tianfutong,https://t.me/xiaobaiup
-
-/unsubscribe  keyword1,keyword2 https://t.me/tianfutong,https://t.me/xiaobaiup
-
-/unsubscribe_id  1,2
+/unsubscribe_id 1,2
 
 /unsubscribe_all
 
 /list
 
+/cancel
   ''')
   raise events.StopPropagation
 
@@ -961,14 +925,14 @@ async def common(event):
 
     # 执行订阅
     if find['current_status'] == '/subscribe keywords':# 当前输入关键字
-      await event.respond('输入需要订阅的频道url或者name：\n\nEnter the url or name of the channel to subscribe to:')
+      await event.respond('Enter channel URL or name to subscribe to:')
       cache.set('status_{}'.format(chat_id),{'current_status':'/subscribe channels','record_value':find['record_value'] + ' ' + text},expire=5*60)# 记录输入的关键字
       raise events.StopPropagation
     elif find['current_status'] == '/subscribe channels':# 当前输入频道
       full_command = find['record_value'] + ' ' + text
       splitd = [i for i in regex.split(r'\s+',full_command) if i]# 删除空元素
       if len(splitd)  != 3:
-        await event.respond('关键字请不要包含空格 可使用正则表达式解决\n\nThe keyword must not contain Spaces.')
+        await event.respond('Keywords must not contain spaces. Use regex instead.')
         raise events.StopPropagation
       command, keywords, channels = splitd
       user_id = utils.db.user.get_or_none(chat_id=chat_id)
@@ -997,14 +961,14 @@ async def common(event):
     
     #取消订阅
     elif find['current_status'] == '/unsubscribe keywords':# 当前输入关键字
-      await event.respond('输入需要**取消订阅**的频道url或者name：\n\nEnter the url or name of the channel where ** unsubscribe **is required:')
+      await event.respond('Enter channel URL or name to unsubscribe from:')
       cache.set('status_{}'.format(chat_id),{'current_status':'/unsubscribe channels','record_value':find['record_value'] + ' ' + text},expire=5*60)# 记录输入的关键字
       raise events.StopPropagation
     elif find['current_status'] == '/unsubscribe channels':# 当前输入频道
       full_command = find['record_value'] + ' ' + text
       splitd = [i for i in regex.split(r'\s+',full_command) if i]# 删除空元素
       if len(splitd)  != 3:
-        await event.respond('关键字请不要包含空格 可使用正则表达式解决\n\nThe keyword must not contain Spaces.')
+        await event.respond('Keywords must not contain spaces. Use regex instead.')
         raise events.StopPropagation
       command, keywords, channels = splitd
       user_id = utils.db.user.get_or_none(chat_id=chat_id)
