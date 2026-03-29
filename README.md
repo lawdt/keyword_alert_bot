@@ -12,20 +12,29 @@ Monitor Telegram channels and groups for keywords and get instant notifications.
 - Private channels via ID or invite link
 - Group message support
 
+## How it works
+
+This bot requires **two** Telegram accounts:
+
+1. **User account** (regular Telegram account) — silently monitors channels/groups for messages matching your keywords. This is necessary because Telegram bots cannot read channel messages unless added as admin.
+2. **Bot account** (created via BotFather) — sends you keyword alerts and handles commands (`/subscribe`, `/list`, etc.)
+
+Both are configured in `config.yml` and run within a single container.
+
 ## Setup
 
 ### 1. Configuration
 
 Copy `config.yml.example` to `config.yml` and fill in:
 
-- **API credentials** — get `api_id` and `api_hash` at https://my.telegram.org/apps
+- **API credentials** — get `api_id` and `api_hash` at https://my.telegram.org/apps (login with the user account)
+- **Phone & username** — the user account that will monitor channels
 - **Bot token** — create a bot via https://t.me/BotFather
-- **Phone & username** — your Telegram account that will monitor channels
 
 ### 2. Docker (recommended)
 
 ```bash
-# First run (interactive — enter SMS code)
+# First run (interactive — enter SMS code and 2FA password if enabled)
 docker compose run --rm keyword_alert_bot
 
 # After successful login, run in background
